@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<title>تست دیتابیس D1</title>
+<style>
+  body { font-family: Tahoma, sans-serif; max-width: 500px; margin: 40px auto; padding: 0 16px; }
+  input, textarea, button { width: 100%; padding: 10px; margin: 6px 0; box-sizing: border-box; font-size: 15px; }
+  button { background: #f6821f; color: white; border: none; cursor: pointer; border-radius: 4px; }
+  h2 { margin-top: 28px; }
+  #result { white-space: pre-wrap; background: #f4f4f4; padding: 10px; margin-top: 20px; border-radius: 6px; direction: ltr; text-align: left; }
+</style>
+</head>
+<body>
+
+<h2>ثبت‌نام</h2>
+<input id="su-username" placeholder="نام کاربری" />
+<input id="su-email" placeholder="ایمیل" />
+<input id="su-password" type="password" placeholder="رمز عبور" />
+<button onclick="signup()">ثبت‌نام</button>
+
+<h2>ورود</h2>
+<input id="li-email" placeholder="ایمیل" />
+<input id="li-password" type="password" placeholder="رمز عبور" />
+<button onclick="login()">ورود</button>
+
+<h2>ساخت پست</h2>
+<input id="post-title" placeholder="عنوان" />
+<textarea id="post-content" placeholder="متن"></textarea>
+<button onclick="createPost()">ثبت پست</button>
+
+<h2>لیست پست‌ها</h2>
+<button onclick="loadPosts()">بارگذاری پست‌ها</button>
+
+<div id="result"></div>
+
+<script>
+// ⚠️ این آدرس رو بعد از دیپلوی Worker با آدرس واقعی خودت عوض کن
+const API_BASE = "https://my-website-backend.4-k5bbin1ys6uuriq0ud2nrhdph4-p.workers.dev";
+
+function show(data) {
+  document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+}
+
+async function signup() {
+  const res = await fetch(`${API_BASE}/api/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      username: document.getElementById("su-username").value,
+      email: document.getElementById("su-email").value,
+      password: document.getElementById("su-password").value,
+    }),
+  });
+  show(await res.json());
+}
+
+async function login() {
+  const res = await fetch(`${API_BASE}/api/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      email: document.getElementById("li-email").value,
+      password: document.getElementById("li-password").value,
+    }),
+  });
+  show(await res.json());
+}
+
+async function createPost() {
+  const res = await fetch(`${API_BASE}/api/posts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      title: document.getElementById("post-title").value,
+      content: document.getElementById("post-content").value,
+    }),
+  });
+  show(await res.json());
+}
+
+async function loadPosts() {
+  const res = await fetch(`${API_BASE}/api/posts`, { credentials: "include" });
+  show(await res.json());
+}
+</script>
+
+</body>
+</html>
