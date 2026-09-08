@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دموی احراز هویت با چهره</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#0D1013;
+  --panel:#171A1E;
+  --panel-2:#1D2126;
+  --border:#282E34;
+  --text:#EDEFF1;
+  --muted:#8A9099;
+  --accent:#E8A33D;
+  --ok:#3FBF7F;
+  --bad:#E85D5D;
+  --mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Vazirmatn', Tahoma, sans-serif;
+  line-height:1.7;
+  padding:32px 20px 80px;
+}
+.wrap{max-width:920px;margin:0 auto;}
+header{margin-bottom:28px;}
+.h1-row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+h1{font-size:1.5rem;font-weight:700;margin:0 0 8px;}
+.version-tag{font-family:var(--mono);font-size:.72rem;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:2px 7px;direction:ltr;}
+.sub{color:var(--muted);font-size:.92rem;max-width:65ch;}
+.grid{display:grid;grid-template-columns:480px 1fr;gap:20px;align-items:start;}
+@media (max-width:820px){ .grid{grid-template-columns:1fr;} }
+.cam-box{position:relative;border:1px solid var(--border);border-radius:4px;overflow:hidden;background:#000;width:100%;max-width:480px;}
+video{display:block;width:100%;height:auto;transform:scaleX(-1);}
+canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1);}
+.scanline{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);top:0;opacity:0;pointer-events:none;}
+.scanline.run{animation:scan .8s ease-in-out;}
+@keyframes scan{ 0%{top:0;opacity:1;} 90%{opacity:1;} 100%{top:100%;opacity:0;} }
+.panel{border:1px solid var(--border);background:var(--panel);border-radius:4px;padding:18px 20px;}
+.panel + .panel{margin-top:14px;}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:8px 0;}
+.row .label{color:var(--muted);font-size:.85rem;}
+.row .val{font-family:var(--mono);font-size:.95rem;direction:ltr;}
+.status{font-size:.98rem;margin-bottom:14px;min-height:1.4em;}
+.status.ok{color:var(--ok);}
+.status.bad{color:var(--bad);}
+.status.busy{color:var(--accent);}
+.btn-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;}
+button{
+  font-family:inherit;font-size:.92rem;
+  background:var(--panel-2);color:var(--text);
+  border:1px solid var(--border);border-radius:4px;
+  padding:10px 16px;cursor:pointer;
+}
+button:hover:not(:disabled){border-color:var(--accent);}
+button:disabled{opacity:.4;cursor:not-allowed;}
+button.primary{background:var(--accent);color:#1A1305;border-color:var(--accent);font-weight:600;}
+button.primary:hover:not(:disabled){background:#f0ae4d;}
+input[type=text], input[type=password]{
+  width:100%;font-family:inherit;font-size:.92rem;
+  background:var(--panel-2);color:var(--text);
+  border:1px solid var(--border);border-radius:4px;
+  padding:10px 12px;
+}
+input[type=text]::placeholder, input[type=password]::placeholder{color:var(--muted);}
+.name-field{margin-top:14px;}
+.slider-block{margin-top:16px;}
+input[type=range]{width:100%;accent-color:var(--accent);}
+.hint{color:var(--muted);font-size:.8rem;margin-top:6px;}
+.log{max-height:220px;overflow-y:auto;font-family:var(--mono);font-size:.8rem;direction:ltr;}
+.log-row{padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;color:var(--muted);flex-wrap:wrap;}
+.log-row:last-child{border-bottom:none;}
+.log-row .tag{font-weight:600;}
+.log-row .tag.ok{color:var(--ok);}
+.log-row .tag.bad{color:var(--bad);}
+h2{font-size:.95rem;font-weight:600;margin:0 0 12px;color:var(--text);}
+h2.sub-h2{margin-top:20px;}
+.note{background:var(--panel-2);border:1px solid var(--border);border-radius:4px;padding:14px 16px;font-size:.85rem;color:var(--muted);margin-top:20px;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+/* liveness toggle switch */
+.switch{position:relative;display:inline-block;width:42px;height:24px;flex:none;}
+.switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;}
+.switch .slider-toggle{position:absolute;inset:0;background:var(--panel-2);border:1px solid var(--border);border-radius:24px;transition:.15s;pointer-events:none;}
+.switch .slider-toggle::before{content:"";position:absolute;height:16px;width:16px;left:3px;top:2px;background:var(--muted);border-radius:50%;transition:.15s;}
+.switch input:checked + .slider-toggle{background:var(--accent);border-color:var(--accent);}
+.switch input:checked + .slider-toggle::before{transform:translateX(18px);background:#1A1305;}
+.switch input:focus-visible + .slider-toggle{outline:2px solid var(--accent);outline-offset:2px;}
+
+/* known faces list */
+.known-list{max-height:220px;overflow-y:auto;}
+.known-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.known-item:last-child{border-bottom:none;}
+.known-item .kname{font-weight:600;overflow-wrap:anywhere;}
+.known-item .kcount{color:var(--muted);font-size:.78rem;font-family:var(--mono);direction:ltr;white-space:nowrap;}
+.known-item .kdel{background:transparent;border:1px solid var(--border);color:var(--bad);padding:4px 10px;font-size:.78rem;border-radius:4px;}
+.known-item .kdel:hover{border-color:var(--bad);}
+.known-empty{color:var(--muted);font-size:.85rem;margin:0;}
+
+/* attendance list */
+.att-list{max-height:260px;overflow-y:auto;}
+.att-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.att-item:last-child{border-bottom:none;}
+.att-item .aname{font-weight:600;overflow-wrap:anywhere;}
+.att-item .atime{color:var(--muted);font-size:.78rem;font-family:var(--mono);direction:ltr;white-space:nowrap;}
+.att-item .adel{background:transparent;border:1px solid var(--border);color:var(--bad);padding:4px 10px;font-size:.78rem;border-radius:4px;}
+.att-item .adel:hover{border-color:var(--bad);}
+
+/* known-list toolbar: search + group filter */
+.known-toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.known-toolbar input[type=text]{flex:2;min-width:140px;margin:0;}
+.known-toolbar select{flex:1;min-width:110px;}
+select{
+  font-family:inherit;font-size:.85rem;
+  background:var(--panel-2);color:var(--text);
+  border:1px solid var(--border);border-radius:4px;
+  padding:9px 10px;
+}
+.show-more-row{text-align:center;padding-top:8px;}
+.link-btn{background:none;border:none;color:var(--accent);font-family:inherit;font-size:.8rem;cursor:pointer;padding:4px;}
+.link-btn:hover{text-decoration:underline;}
+
+/* group badge on known-item */
+.kgroup{display:inline-block;font-size:.72rem;color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:1px 8px;margin-inline-start:8px;}
+
+/* inline edit form inside a known-item */
+.kedit-form{display:flex;flex-wrap:wrap;gap:8px;width:100%;align-items:center;}
+.kedit-form input[type=text]{flex:1;min-width:110px;margin:0;padding:7px 10px;font-size:.85rem;}
+.kedit-form .kedit-actions{display:flex;gap:6px;}
+.kedit-form button{padding:7px 12px;font-size:.8rem;}
+
+.known-item .kedit{background:transparent;border:1px solid var(--border);color:var(--text);padding:4px 10px;font-size:.78rem;border-radius:4px;}
+.known-item .kedit:hover{border-color:var(--accent);}
+.known-item .kname-wrap{flex:1;min-width:0;}
+
+/* camera select in the cam-box button row */
+.cam-select{max-width:100%;}
+
+/* auto-verify progress bar */
+.progress-track{width:100%;height:5px;border-radius:3px;background:var(--panel-2);border:1px solid var(--border);overflow:hidden;margin-top:8px;}
+.progress-fill{height:100%;width:0%;background:var(--accent);transition:width .1s linear;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<div class="h1-row">
+<h1>دموی احراز هویت با چهره</h1>
+<span class="version-tag">v1.3.0 (Worker+D1+حساب کاربری+حضوروغیاب)</span>
+</div>
+<p class="sub">تشخیص چهره و استخراج ویژگی‌ها به‌طور کامل داخل همین مرورگر انجام می‌شود؛ هیچ تصویری از چهرهٔ شما به هیچ سروری ارسال نمی‌شود. برای ثبت و شناسایی چهره ابتدا باید وارد یک حساب کاربری شوید؛ از آن پس بردار عددی ۱۲۸بعدی (توصیف‌گر ریاضی چهره، نه خودِ تصویر) به همراه نامی که وارد می‌کنید فقط زیر همان حساب در یک Cloudflare Worker و دیتابیس D1 ذخیره می‌شود — هر کاربر فقط چهره‌های خودش را می‌بیند. تشخیص‌دهنده: SSD Mobilenet. شناسگر: شبکه‌ای معادل ResNet-34 با دقت گزارش‌شده 99.38% روی معیار LFW.</p>
+</header>
+
+<!-- ====== حساب کاربری ====== -->
+<div class="panel" id="acctPanelLoggedOut">
+<p class="hint" style="margin-top:0;">برای ثبت و شناسایی چهره ابتدا وارد شوید. چهره‌های ثبت‌شده فقط برای همین حساب نمایش داده می‌شوند.</p>
+
+<h2 class="sub-h2">ثبت‌نام</h2>
+<input type="text" id="su-username" placeholder="نام کاربری">
+<input type="text" id="su-email" placeholder="ایمیل">
+<input type="password" id="su-password" placeholder="رمز عبور (حداقل ۶ کاراکتر)">
+<button type="button" class="primary" id="btnSignup">ثبت‌نام</button>
+
+<h2 class="sub-h2">ورود</h2>
+<input type="text" id="li-email" placeholder="ایمیل">
+<input type="password" id="li-password" placeholder="رمز عبور">
+<button type="button" id="btnLogin">ورود</button>
+
+<div class="status" id="acctStatus"></div>
+</div>
+
+<div class="panel" id="acctPanelLoggedIn" style="display:none;">
+<div class="row">
+<span class="label">وارد شده به‌عنوان</span>
+<span class="val" id="whoami">—</span>
+</div>
+<button type="button" id="btnLogout">خروج از حساب</button>
+</div>
+
+<div class="grid">
+<div>
+<div class="cam-box">
+<video id="video" autoplay muted playsinline></video>
+<canvas id="overlay"></canvas>
+<div class="scanline" id="scanline"></div>
+</div>
+<div class="btn-row">
+<select id="cameraSelect" class="cam-select" title="انتخاب دوربین">
+<option value="">دوربین پیش‌فرض</option>
+</select>
+</div>
+<div class="btn-row">
+<button type="button" class="primary" id="btnStart" disabled>شروع دوربین</button>
+<button type="button" id="btnReset" disabled>پاک‌کردن همهٔ چهره‌های من</button>
+</div>
+</div>
+
+<div>
+<div class="panel">
+<div class="status busy" id="status">در حال بارگذاری مدل‌ها…</div>
+<button type="button" class="primary" id="btnRetryModels" style="display:none;margin-bottom:14px;">تلاش مجدد برای بارگذاری مدل‌ها</button>
+
+<div class="row"><span class="label">چهره در قاب</span><span class="val" id="faceVal">خیر</span></div>
+<div class="row"><span class="label">فرد شناسایی‌شده</span><span class="val" id="matchVal">—</span></div>
+<div class="row"><span class="label">فاصلهٔ چهره (Distance)</span><span class="val" id="distVal">—</span></div>
+<div class="row"><span class="label">آستانهٔ تصمیم</span><span class="val" id="threshVal">0.50</span></div>
+<div class="row"><span class="label">زنده‌بودن (پلک اخیر)</span><span class="val" id="liveVal">—</span></div>
+<div class="row"><span class="label">افراد ثبت‌شده</span><span class="val" id="refCount">0</span></div>
+
+<div class="slider-block">
+<input type="range" id="threshold" min="0.30" max="0.70" step="0.01" value="0.50">
+<p class="hint">آستانهٔ پایین‌تر یعنی سخت‌گیرتر: رد بیشتر افراد غیرمجاز، اما احتمال رد اشتباهِ کاربر واقعی (FRR) هم بالاتر می‌رود. آستانهٔ بالاتر یعنی عبور راحت‌تر، اما ریسک پذیرش فرد غیرمجاز (FAR) بیشتر می‌شود.</p>
+</div>
+
+<div class="row" style="margin-top:16px;">
+<span class="label">نیاز به تأیید پلک‌زدن (Liveness)</span>
+<label class="switch">
+<input type="checkbox" id="livenessToggle" checked>
+<span class="slider-toggle"></span>
+</label>
+</div>
+<p class="hint">در صورت خاموش‌بودن، «تأیید هویت» فقط بر اساس تطابق چهره انجام می‌شود و محافظتِ در برابر عکسِ ساده (به‌جای چهرهٔ واقعی) از بین می‌رود؛ فقط برای تست سریع پیشنهاد می‌شود.</p>
+
+<div class="row" style="margin-top:16px;">
+<span class="label">تأیید خودکار (بدون کلیک روی دکمه)</span>
+<label class="switch">
+<input type="checkbox" id="autoVerifyToggle">
+<span class="slider-toggle"></span>
+</label>
+</div>
+<p class="hint">در صورت روشن‌بودن، وقتی چهره‌ای به‌طور پیوسته چند ثانیه در قاب بماند، «تأیید هویت» خودکار اجرا و در صورت پذیرفته‌شدن، حضور ثبت می‌شود.</p>
+<div class="row" id="autoHoldRow" style="margin-top:10px;">
+<span class="label">مدت‌زمان لازم برای تأیید خودکار</span>
+<span class="val" id="autoHoldVal">3.0 ثانیه</span>
+</div>
+<input type="range" id="autoHoldInput" min="1" max="8" step="0.5" value="3">
+<div class="progress-track"><div class="progress-fill" id="autoProgressFill"></div></div>
+
+<div class="name-field">
+<input type="text" id="nameInput" placeholder="نام این چهره را وارد کنید (مثلاً: علی)" maxlength="40">
+</div>
+<div class="name-field">
+<input type="text" id="groupInput" placeholder="گروه یا دسته (اختیاری — مثلاً: بخش فروش)" maxlength="40">
+</div>
+<div class="btn-row">
+<button type="button" class="primary" id="btnRegister" disabled>ثبت چهره با این نام</button>
+<button type="button" id="btnVerify" disabled>تأیید / شناسایی هویت</button>
+</div>
+</div>
+
+<div class="panel">
+<h2>چهره‌های ثبت‌شدهٔ من</h2>
+<div class="known-toolbar">
+<input type="text" id="knownSearch" placeholder="جستجو بر اساس نام…">
+<select id="groupFilter">
+<option value="">همهٔ گروه‌ها</option>
+</select>
+</div>
+<div class="known-list" id="knownList"><p class="known-empty">ابتدا وارد شوید.</p></div>
+<div class="show-more-row" id="showMoreRow" style="display:none;">
+<button type="button" class="link-btn" id="btnShowAllKnown">نمایش همه</button>
+</div>
+</div>
+
+<div class="panel">
+<h2>حضور و غیاب امروز</h2>
+<div class="row"><span class="label">تاریخ</span><span class="val" id="attDateVal">—</span></div>
+<div class="row"><span class="label">حاضرین</span><span class="val" id="attSummary">۰ از ۰</span></div>
+<div class="att-list" id="attList"><p class="known-empty">ابتدا وارد شوید.</p></div>
+<div class="btn-row">
+<button type="button" id="btnRefreshAttendance" disabled>بروزرسانی فهرست</button>
+<button type="button" class="primary" id="btnExportExcel" disabled>دانلود اکسل امروز</button>
+</div>
+</div>
+
+<div class="panel">
+<h2>گزارش تلاش‌ها</h2>
+<div class="log" id="log"></div>
+</div>
+</div>
+</div>
+
+<div class="note">
+برای تست جدی‌تر: یک‌بار با چهرهٔ واقعی خودتان تأیید هویت را امتحان کنید. بار بعد عکس چهرهٔ خودتان را روی یک گوشی دیگر باز کنید و مقابل دوربین بگیرید. اگر بدون پلک‌زدن رد شد، همان «بررسی زنده‌بودن» (liveness) است که جلوی فریب با عکس ساده را می‌گیرد. این صفحه از کوکی سشن استفاده می‌کند، پس بهتر است آن را از یک وب‌سرور واقعی (مثلاً Cloudflare Pages) باز کنید، نه با دابل‌کلیک روی فایل — خیلی از مرورگرها کوکی را برای صفحات «file://» درست ارسال نمی‌کنند.
+</div>
+</div>
+
+<script defer>
+const MODEL_URLS = [
+  'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights/',
+  'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/',
+  'https://justadudewhohacks.github.io/face-api.js/models/',
+  'https://raw.githack.com/justadudewhohacks/face-api.js/master/weights/'
+];
+
+// ====== تنظیمات اتصال به بک‌اند (Cloudflare Worker + D1) ======
+const API_BASE = "https://faceauth.alireza123456w6w6w.workers.dev";
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('overlay');
+const ctx = canvas.getContext('2d');
+const scanline = document.getElementById('scanline');
+const statusEl = document.getElementById('status');
+const faceVal = document.getElementById('faceVal');
+const matchVal = document.getElementById('matchVal');
+const distVal = document.getElementById('distVal');
+const threshVal = document.getElementById('threshVal');
+const liveVal = document.getElementById('liveVal');
+const refCountEl = document.getElementById('refCount');
+const thresholdInput = document.getElementById('threshold');
+const livenessToggle = document.getElementById('livenessToggle');
+const nameInput = document.getElementById('nameInput');
+const knownListEl = document.getElementById('knownList');
+const logEl = document.getElementById('log');
+const btnStart = document.getElementById('btnStart');
+const btnRegister = document.getElementById('btnRegister');
+const btnVerify = document.getElementById('btnVerify');
+const btnReset = document.getElementById('btnReset');
+const btnRetryModels = document.getElementById('btnRetryModels');
+const acctPanelLoggedOut = document.getElementById('acctPanelLoggedOut');
+const acctPanelLoggedIn = document.getElementById('acctPanelLoggedIn');
+const acctStatusEl = document.getElementById('acctStatus');
+const whoamiEl = document.getElementById('whoami');
+const attDateVal = document.getElementById('attDateVal');
+const attSummary = document.getElementById('attSummary');
+const attListEl = document.getElementById('attList');
+const btnExportExcel = document.getElementById('btnExportExcel');
+const btnRefreshAttendance = document.getElementById('btnRefreshAttendance');
+
+let displaySize = null;
+let threshold = 0.5;
+let livenessRequired = true;
+let lastBlinkAt = 0;
+let earState = 'open';
+let currentDetection = null;
+let knownProfiles = [];   // فقط { id, name, sample_count } که از سرور می‌آید
+let verifyBusy = false;
+let lastLiveCheckAt = 0;
+let cameraOn = false;
+let loggedIn = false;
+let currentUser = null;
+let attendanceDate = todayISODate();
+let attendanceRecords = [];
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function setStatus(text, kind){
+  statusEl.textContent = text;
+  statusEl.className = 'status' + (kind ? ' '+kind : '');
+}
+
+function setAcctStatus(text, kind){
+  acctStatusEl.textContent = text;
+  acctStatusEl.className = 'status' + (kind ? ' '+kind : '');
+}
+
+function logAttempt(accepted, distance, liveOk, name){
+  const time = new Date().toLocaleTimeString('fa-IR');
+  const row = document.createElement('div');
+  row.className = 'log-row';
+  const liveText = (liveOk === null) ? 'غیرفعال' : (liveOk ? 'بله' : 'خیر');
+  const nameSpan = name ? `<span>نام: ${escapeHtml(name)}</span>` : '';
+  row.innerHTML = `<span>${time}</span><span>فاصله: ${distance.toFixed(3)}</span><span>زنده‌بودن: ${liveText}</span>${nameSpan}<span class="tag ${accepted?'ok':'bad'}">${accepted?'پذیرفته شد':'رد شد'}</span>`;
+  logEl.prepend(row);
+}
+
+function todayISODate(){
+  // تاریخ محلی مرورگر به‌صورت YYYY-MM-DD (نه UTC، تا با روز واقعی کاربر یکی باشد)
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+function ear(eye){
+  const a = dist(eye[1], eye[5]);
+  const b = dist(eye[2], eye[4]);
+  const c = dist(eye[0], eye[3]);
+  return (a+b)/(2*c);
+}
+
+function drawViewfinder(box, color){
+  const {x,y,width:w,height:h} = box;
+  const len = Math.min(w,h)*0.22;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  const corners = [
+    [x,y, len,0, 0,len],
+    [x+w,y, -len,0, 0,len],
+    [x,y+h, len,0, 0,-len],
+    [x+w,y+h, -len,0, 0,-len],
+  ];
+  corners.forEach(([cx,cy,dx1,dy1,dx2,dy2])=>{
+    ctx.beginPath();
+    ctx.moveTo(cx+dx1, cy+dy1);
+    ctx.lineTo(cx,cy);
+    ctx.lineTo(cx+dx2, cy+dy2);
+    ctx.stroke();
+  });
+}
+
+// ====== ارتباط با Worker (کوکی سشن به‌جای کلید API) ======
+async function apiFetch(path, options){
+  options = options || {};
+  const headers = Object.assign({'Content-Type':'application/json'}, options.headers||{});
+  const res = await fetch(API_BASE + path, Object.assign({credentials:'include'}, options, {headers}));
+  if(!res.ok){
+    let msg = 'خطای سرور (' + res.status + ')';
+    try{ const j = await res.json(); if(j && j.error) msg += ': ' + j.error; }catch(e){}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+// ====== حساب کاربری ======
+function syncActionButtons(){
+  btnRegister.disabled = !(cameraOn && loggedIn);
+  btnVerify.disabled = !(cameraOn && loggedIn);
+  btnReset.disabled = !loggedIn;
+}
+
+function onLoggedIn(user){
+  currentUser = user;
+  loggedIn = true;
+  acctPanelLoggedOut.style.display = 'none';
+  acctPanelLoggedIn.style.display = 'block';
+  whoamiEl.textContent = user.username || user.email;
+  syncActionButtons();
+  loadKnownList();
+  loadAttendance();
+}
+
+function onLoggedOut(){
+  currentUser = null;
+  loggedIn = false;
+  acctPanelLoggedOut.style.display = 'block';
+  acctPanelLoggedIn.style.display = 'none';
+  knownProfiles = [];
+  renderKnownList();
+  attendanceRecords = [];
+  renderAttendance();
+  attSummary.textContent = '۰ از ۰';
+  attDateVal.textContent = '—';
+  btnExportExcel.disabled = true;
+  btnRefreshAttendance.disabled = true;
+  syncActionButtons();
+}
+
+async function checkSession(){
+  try{
+    const data = await apiFetch('/api/me');
+    onLoggedIn(data.user);
+  }catch(err){
+    onLoggedOut(); // طبیعی است: یعنی هنوز وارد نشده‌اید
+  }
+}
+
+async function signup(){
+  const username = document.getElementById('su-username').value.trim();
+  const email = document.getElementById('su-email').value.trim();
+  const password = document.getElementById('su-password').value;
+  if(!username || !email.includes('@') || password.length < 6){
+    setAcctStatus('نام کاربری، ایمیل معتبر و رمز عبور حداقل ۶ کاراکتری وارد کنید.', 'bad');
+    return;
+  }
+  try{
+    const data = await apiFetch('/api/signup', { method:'POST', body: JSON.stringify({username, email, password}) });
+    setAcctStatus('', null);
+    onLoggedIn(data);
+  }catch(err){
+    setAcctStatus('ثبت‌نام ناموفق: ' + err.message, 'bad');
+  }
+}
+
+async function login(){
+  const email = document.getElementById('li-email').value.trim();
+  const password = document.getElementById('li-password').value;
+  try{
+    const data = await apiFetch('/api/login', { method:'POST', body: JSON.stringify({email, password}) });
+    setAcctStatus('', null);
+    onLoggedIn(data);
+  }catch(err){
+    setAcctStatus('ورود ناموفق: ' + err.message, 'bad');
+  }
+}
+
+async function logout(){
+  try{ await apiFetch('/api/logout', { method:'POST' }); }catch(e){ /* اهمیتی ندارد */ }
+  onLoggedOut();
+}
+
+async function loadKnownList(){
+  try{
+    const data = await apiFetch('/api/profiles');
+    knownProfiles = data.profiles || [];
+    renderKnownList();
+  }catch(err){
+    console.error('بارگذاری فهرست چهره‌ها ناموفق بود:', err);
+    knownListEl.innerHTML = '<p class="known-empty">اتصال به سرور برقرار نشد.</p>';
+  }
+}
+
+function renderKnownList(){
+  knownListEl.innerHTML = '';
+  if(!loggedIn){
+    knownListEl.innerHTML = '<p class="known-empty">ابتدا وارد شوید.</p>';
+    refCountEl.textContent = '0';
+    return;
+  }
+  if(!knownProfiles.length){
+    knownListEl.innerHTML = '<p class="known-empty">هنوز چهره‌ای ثبت نشده است.</p>';
+    refCountEl.textContent = '0';
+    return;
+  }
+  knownProfiles.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'known-item';
+    item.innerHTML = `<span class="kname">${escapeHtml(p.name)}</span><span class="kcount">${p.sample_count} نمونه</span><button type="button" class="kdel" data-id="${p.id}">حذف</button>`;
+    knownListEl.appendChild(item);
+  });
+  refCountEl.textContent = knownProfiles.length;
+}
+
+knownListEl.addEventListener('click', async e=>{
+  const btn = e.target.closest('.kdel');
+  if(!btn) return;
+  const id = btn.dataset.id;
+  btn.disabled = true;
+  try{
+    await apiFetch('/api/profiles/'+id, { method:'DELETE' });
+    await loadKnownList();
+    setStatus('چهره حذف شد.', 'ok');
+  }catch(err){
+    setStatus('حذف با خطا مواجه شد: ' + err.message, 'bad');
+    btn.disabled = false;
+  }
+});
+
+// ====== حضور و غیاب ======
+async function loadAttendance(){
+  if(!loggedIn) return;
+  try{
+    const data = await apiFetch('/api/attendance?date=' + attendanceDate);
+    attendanceRecords = data.records || [];
+    attDateVal.textContent = attendanceDate;
+    attSummary.textContent = `${attendanceRecords.length} از ${data.total_registered ?? knownProfiles.length}`;
+    renderAttendance();
+    btnExportExcel.disabled = attendanceRecords.length === 0;
+    btnRefreshAttendance.disabled = false;
+  }catch(err){
+    console.error('بارگذاری حضور و غیاب ناموفق بود:', err);
+    attListEl.innerHTML = '<p class="known-empty">اتصال به سرور برقرار نشد.</p>';
+  }
+}
+
+function renderAttendance(){
+  attListEl.innerHTML = '';
+  if(!loggedIn){
+    attListEl.innerHTML = '<p class="known-empty">ابتدا وارد شوید.</p>';
+    return;
+  }
+  if(!attendanceRecords.length){
+    attListEl.innerHTML = '<p class="known-empty">امروز هنوز کسی حضور نزده است.</p>';
+    return;
+  }
+  attendanceRecords.forEach(r=>{
+    const item = document.createElement('div');
+    item.className = 'att-item';
+    const time = new Date(r.checkin_time).toLocaleTimeString('fa-IR');
+    item.innerHTML = `<span class="aname">${escapeHtml(r.name)}</span><span class="atime">${time}</span><button type="button" class="adel" data-id="${r.id}">حذف</button>`;
+    attListEl.appendChild(item);
+  });
+}
+
+attListEl.addEventListener('click', async e=>{
+  const btn = e.target.closest('.adel');
+  if(!btn) return;
+  const id = btn.dataset.id;
+  btn.disabled = true;
+  try{
+    await apiFetch('/api/attendance/'+id, { method:'DELETE' });
+    await loadAttendance();
+  }catch(err){
+    setStatus('حذف رکورد حضور با خطا مواجه شد: ' + err.message, 'bad');
+    btn.disabled = false;
+  }
+});
+
+async function recordAttendance(profileId, name){
+  if(!profileId){
+    setStatus(`هویت تأیید شد: ${name} (نسخهٔ فعلی بک‌اند شناسهٔ چهره را برنمی‌گرداند؛ ثبت حضور خودکار ممکن نشد — به بخش «افزودن حضور و غیاب به بک‌اند» مراجعه کنید)`, 'bad');
+    return;
+  }
+  try{
+    const data = await apiFetch('/api/attendance/checkin', {
+      method:'POST',
+      body: JSON.stringify({ profile_id: profileId })
+    });
+    await loadAttendance();
+    if(data.already_checked_in){
+      const time = new Date(data.checkin_time).toLocaleTimeString('fa-IR');
+      setStatus(`هویت تأیید شد: ${name} — حضور امروز قبلاً ساعت ${time} ثبت شده بود.`, 'ok');
+    } else {
+      setStatus(`هویت تأیید شد: ${name} — حضور با موفقیت ثبت شد.`, 'ok');
+    }
+  }catch(err){
+    setStatus(`هویت تأیید شد: ${name}، اما ثبت حضور با خطا مواجه شد: ` + err.message, 'bad');
+  }
+}
+
+function exportAttendanceExcel(){
+  if(typeof XLSX === 'undefined'){
+    setStatus('کتابخانهٔ خروجی اکسل هنوز کاملاً بارگذاری نشده؛ چند لحظه صبر کنید و دوباره امتحان کنید.', 'bad');
+    return;
+  }
+  if(!attendanceRecords.length){
+    setStatus('برای امروز رکوردی برای خروجی گرفتن وجود ندارد.', 'bad');
+    return;
+  }
+  const rows = attendanceRecords.map((r,i)=>({
+    'ردیف': i+1,
+    'نام': r.name,
+    'ساعت حضور': new Date(r.checkin_time).toLocaleTimeString('fa-IR'),
+    'تاریخ': attendanceDate
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'حضور و غیاب');
+  XLSX.writeFile(wb, `حضور-غیاب-${attendanceDate}.xlsx`);
+}
+
+btnExportExcel.addEventListener('click', exportAttendanceExcel);
+btnRefreshAttendance.addEventListener('click', loadAttendance);
+
+async function loadModelsFromUrl(url){
+  await faceapi.nets.ssdMobilenetv1.loadFromUri(url);
+  await faceapi.nets.faceLandmark68Net.loadFromUri(url);
+  await faceapi.nets.faceRecognitionNet.loadFromUri(url);
+}
+
+async function loadModels(){
+  btnRetryModels.style.display = 'none';
+  for(let i=0;i<MODEL_URLS.length;i++){
+    const url = MODEL_URLS[i];
+    setStatus(`در حال بارگذاری مدل‌ها (منبع ${i+1} از ${MODEL_URLS.length})…`, 'busy');
+    try{
+      await loadModelsFromUrl(url);
+      setStatus('مدل‌ها آماده‌اند. دوربین را روشن کنید.', 'ok');
+      btnStart.disabled = false;
+      return;
+    }catch(err){
+      console.warn('بارگذاری مدل از این منبع ناموفق بود:', url, err);
+    }
+  }
+  setStatus('بارگذاری مدل‌ها از همهٔ منابع ناموفق بود. اتصال اینترنت/VPN را بررسی کنید.', 'bad');
+  btnRetryModels.style.display = 'inline-block';
+}
+
+function warnIfRestrictedScheme(){
+  if(location.protocol === 'content:' || location.protocol === 'file:'){
+    const warn = document.createElement('div');
+    warn.className = 'note';
+    warn.style.borderColor = 'var(--bad)';
+    warn.style.color = 'var(--bad)';
+    warn.textContent = 'این صفحه با آدرس «' + location.protocol + '//» باز شده است. کوکی سشن معمولاً از این حالت درست کار نمی‌کند. صفحه را روی یک وب‌سرور واقعی (مثلاً Cloudflare Pages یا هر هاست دیگر) قرار دهید یا با یک سرور محلی سرو کنید.';
+    document.querySelector('header').insertAdjacentElement('afterend', warn);
+  }
+}
+
+async function startCamera(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{ width:{ideal:480}, facingMode:{ideal:'user'} },
+      audio:false
+    });
+    video.srcObject = stream;
+    await new Promise(resolve => { video.onloadedmetadata = resolve; });
+    await video.play();
+    displaySize = { width: video.videoWidth, height: video.videoHeight };
+    canvas.width = displaySize.width;
+    canvas.height = displaySize.height;
+    btnStart.disabled = true;
+    cameraOn = true;
+    syncActionButtons();
+    setStatus('دوربین آماده است — در انتظار تشخیص چهره', 'ok');
+    detectLoop();
+  }catch(err){
+    setStatus('دسترسی به دوربین ممکن نشد.', 'bad');
+    console.error(err);
+  }
+}
+
+async function detectLoop(){
+  if(!displaySize) return;
+  const options = new faceapi.SsdMobilenetv1Options({minConfidence:0.5});
+  const result = await faceapi.detectSingleFace(video, options).withFaceLandmarks().withFaceDescriptor();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if(result){
+    const resized = faceapi.resizeResults(result, displaySize);
+    currentDetection = resized;
+    faceVal.textContent = 'بله';
+    const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    drawViewfinder(resized.detection.box, accentColor);
+
+    const leftEAR = ear(resized.landmarks.getLeftEye());
+    const rightEAR = ear(resized.landmarks.getRightEye());
+    const avgEAR = (leftEAR+rightEAR)/2;
+    if(earState==='open' && avgEAR < 0.21){ earState='closing'; }
+    else if(earState==='closing' && avgEAR > 0.25){ earState='open'; lastBlinkAt = Date.now(); }
+
+    if(!loggedIn || !knownProfiles.length){
+      distVal.textContent = '—';
+      matchVal.textContent = loggedIn ? 'کسی ثبت نشده' : 'وارد نشده‌اید';
+    } else if(!verifyBusy && (Date.now()-lastLiveCheckAt) > 2000){
+      // پیش‌نمایش زندهٔ شناسایی، محدودشده به هر ۲ ثانیه یک‌بار تا فشار زیادی
+      // به Worker/D1 وارد نشود. تصمیم نهایی فقط با دکمهٔ «تأیید هویت» گرفته می‌شود.
+      lastLiveCheckAt = Date.now();
+      liveIdentifyPreview(resized.descriptor);
+    }
+  } else {
+    currentDetection = null;
+    faceVal.textContent = 'خیر';
+    matchVal.textContent = '—';
+  }
+
+  if(livenessRequired){
+    liveVal.textContent = ((Date.now()-lastBlinkAt) < 8000) ? 'تأیید شد' : 'در انتظار پلک';
+  } else {
+    liveVal.textContent = 'غیرفعال (نیازی نیست)';
+  }
+
+  setTimeout(detectLoop, 250);
+}
+
+async function liveIdentifyPreview(descriptor){
+  verifyBusy = true;
+  try{
+    const data = await apiFetch('/api/verify', {
+      method:'POST',
+      body: JSON.stringify({ descriptor: Array.from(descriptor) })
+    });
+    if(data.best){
+      distVal.textContent = data.best.distance.toFixed(3);
+      matchVal.textContent = (data.best.distance <= threshold) ? data.best.name : 'ناشناس';
+    }
+  }catch(err){
+    console.warn('پیش‌نمایش زندهٔ شناسایی ناموفق بود:', err.message);
+  }finally{
+    verifyBusy = false;
+  }
+}
+
+async function registerFace(){
+  if(!currentDetection){ setStatus('چهره‌ای شناسایی نشد؛ مقابل دوربین قرار بگیرید.', 'bad'); return; }
+  const name = nameInput.value.trim();
+  if(!name){ setStatus('ابتدا یک نام برای این چهره وارد کنید.', 'bad'); nameInput.focus(); return; }
+
+  btnRegister.disabled = true;
+  try{
+    const data = await apiFetch('/api/register', {
+      method:'POST',
+      body: JSON.stringify({ name, descriptor: Array.from(currentDetection.descriptor) })
+    });
+    await loadKnownList();
+    setStatus(`نمونهٔ ${data.sample_count} برای «${data.name}» در حساب شما ثبت شد. برای دقت بیشتر ۲ تا ۳ نمونه با زاویه‌های کمی متفاوت ثبت کنید.`, 'ok');
+  }catch(err){
+    setStatus('ثبت با خطا مواجه شد: ' + err.message, 'bad');
+  }finally{
+    syncActionButtons();
+  }
+}
+
+async function resetAll(){
+  btnReset.disabled = true;
+  try{
+    await apiFetch('/api/profiles', { method:'DELETE' });
+    await loadKnownList();
+    distVal.textContent = '—';
+    matchVal.textContent = '—';
+    logEl.innerHTML = '';
+    setStatus('همهٔ چهره‌های ثبت‌شدهٔ حساب شما پاک شدند.', 'ok');
+  }catch(err){
+    setStatus('پاک‌کردن با خطا مواجه شد: ' + err.message, 'bad');
+  }finally{
+    syncActionButtons();
+  }
+}
+
+async function verifyIdentity(){
+  scanline.classList.remove('run'); void scanline.offsetWidth; scanline.classList.add('run');
+
+  if(!knownProfiles.length){ setStatus('ابتدا حداقل یک چهره را ثبت کنید.', 'bad'); return; }
+  if(!currentDetection){ setStatus('چهره‌ای شناسایی نشد.', 'bad'); return; }
+
+  const liveOk = (Date.now()-lastBlinkAt) < 8000;
+
+  btnVerify.disabled = true;
+  try{
+    const data = await apiFetch('/api/verify', {
+      method:'POST',
+      body: JSON.stringify({ descriptor: Array.from(currentDetection.descriptor) })
+    });
+    const best = data.best;
+    if(!best){ setStatus('هیچ چهره‌ای در حساب شما ثبت نشده.', 'bad'); return; }
+
+    distVal.textContent = best.distance.toFixed(3);
+
+    if(livenessRequired && !liveOk){
+      setStatus('پلکی شناسایی نشد — یک‌بار پلک بزنید و دوباره امتحان کنید.', 'bad');
+      logAttempt(false, best.distance, false, null);
+      return;
+    }
+
+    const accepted = best.distance <= threshold;
+    matchVal.textContent = accepted ? best.name : 'ناشناس';
+    if(accepted){
+      // فرض: /api/verify فیلد id چهرهٔ منطبق را هم در best برمی‌گرداند (best.id).
+      // اگر بک‌اند فعلی این فیلد را ندارد، طبق راهنمای «افزودن حضور و غیاب به بک‌اند» اضافه‌اش کن.
+      await recordAttendance(best.id, best.name);
+    } else {
+      setStatus('این چهره با هیچ‌کدام از افراد ثبت‌شده مطابقت ندارد — ثبت‌نام نکرده است.', 'bad');
+    }
+    logAttempt(accepted, best.distance, livenessRequired ? liveOk : null, accepted ? best.name : null);
+  }catch(err){
+    setStatus('تأیید هویت با خطا مواجه شد: ' + err.message, 'bad');
+  }finally{
+    syncActionButtons();
+  }
+}
+
+thresholdInput.addEventListener('input', e=>{
+  threshold = parseFloat(e.target.value);
+  threshVal.textContent = threshold.toFixed(2);
+});
+
+livenessToggle.addEventListener('change', e=>{
+  livenessRequired = e.target.checked;
+  setStatus(
+    livenessRequired ? 'تأیید پلک‌زدن فعال شد.' : 'تأیید پلک‌زدن غیرفعال شد — احراز هویت فقط بر اساس تطابق چهره انجام می‌شود.',
+    'ok'
+  );
+});
+
+btnStart.addEventListener('click', startCamera);
+btnRegister.addEventListener('click', registerFace);
+btnVerify.addEventListener('click', verifyIdentity);
+btnReset.addEventListener('click', resetAll);
+btnRetryModels.addEventListener('click', loadModels);
+document.getElementById('btnSignup').addEventListener('click', signup);
+document.getElementById('btnLogin').addEventListener('click', login);
+document.getElementById('btnLogout').addEventListener('click', logout);
+
+warnIfRestrictedScheme();
+loadModels();
+checkSession();
+</script>
+</body>
+</html>
