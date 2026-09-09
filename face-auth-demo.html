@@ -319,7 +319,17 @@ const refCountEl = document.getElementById('refCount');
 const thresholdInput = document.getElementById('threshold');
 const livenessToggle = document.getElementById('livenessToggle');
 const nameInput = document.getElementById('nameInput');
+const groupInput = document.getElementById('groupInput');
 const knownListEl = document.getElementById('knownList');
+const knownSearchInput = document.getElementById('knownSearch');
+const groupFilterSelect = document.getElementById('groupFilter');
+const showMoreRow = document.getElementById('showMoreRow');
+const btnShowAllKnown = document.getElementById('btnShowAllKnown');
+const cameraSelect = document.getElementById('cameraSelect');
+const autoVerifyToggle = document.getElementById('autoVerifyToggle');
+const autoHoldInput = document.getElementById('autoHoldInput');
+const autoHoldVal = document.getElementById('autoHoldVal');
+const autoProgressFill = document.getElementById('autoProgressFill');
 const logEl = document.getElementById('log');
 const btnStart = document.getElementById('btnStart');
 const btnRegister = document.getElementById('btnRegister');
@@ -350,6 +360,23 @@ let loggedIn = false;
 let currentUser = null;
 let attendanceDate = todayISODate();
 let attendanceRecords = [];
+
+// نمایش/جستجو/گروه‌بندی فهرست چهره‌ها
+let knownSearchText = '';
+let groupFilterValue = '';
+let showAllKnown = false;
+let editingProfileId = null;
+const KNOWN_LIST_COLLAPSE_AT = 8;
+
+// تأیید خودکار
+let autoVerifyEnabled = false;
+let autoHoldSeconds = 3;
+let faceDetectedSince = null;
+let autoFiredForThisPresence = false;
+
+// انتخاب دوربین
+let selectedDeviceId = '';
+let devicesPopulated = false;
 
 function escapeHtml(str){
   const div = document.createElement('div');
@@ -507,6 +534,7 @@ async function loadKnownList(){
   try{
     const data = await apiFetch('/api/profiles');
     knownProfiles = data.profiles || [];
+    syncGroupFilterOptions();
     renderKnownList();
   }catch(err){
     console.error('بارگذاری فهرست چهره‌ها ناموفق بود:', err);
@@ -514,40 +542,174 @@ async function loadKnownList(){
   }
 }
 
+function profileGroupKey(p){
+  return (p.group_name && p.group_name.trim()) ? p.group_name.trim() : '';
+}
+
+function syncGroupFilterOptions(){
+  const groups = new Set();
+  let hasUngrouped = false;
+  knownProfiles.forEach(p=>{
+    const g = profileGroupKey(p);
+    if(g) groups.add(g); else hasUngrouped = true;
+  });
+  const prevValue = groupFilterSelect.value;
+  groupFilterSelect.innerHTML = '<option value="">همهٔ گروه‌ها</option>';
+  [...groups].sort((a,b)=>a.localeCompare(b,'fa')).forEach(g=>{
+    const opt = document.createElement('option');
+    opt.value = g; opt.textContent = g;
+    groupFilterSelect.appendChild(opt);
+  });
+  if(hasUngrouped){
+    const opt = document.createElement('option');
+    opt.value = '__NONE__'; opt.textContent = 'بدون گروه';
+    groupFilterSelect.appendChild(opt);
+  }
+  // اگر گروهِ انتخاب‌شدهٔ قبلی هنوز وجود دارد، همان را نگه دار
+  if([...groupFilterSelect.options].some(o=>o.value===prevValue)){
+    groupFilterSelect.value = prevValue;
+    groupFilterValue = prevValue;
+  } else {
+    groupFilterValue = '';
+  }
+}
+
+function buildKnownItemHTML(p){
+  const groupBadge = profileGroupKey(p) ? `<span class="kgroup">${escapeHtml(profileGroupKey(p))}</span>` : '';
+  return `
+    <span class="kname-wrap"><span class="kname">${escapeHtml(p.name)}</span>${groupBadge}</span>
+    <span class="kcount">${p.sample_count} نمونه</span>
+    <button type="button" class="kedit" data-id="${p.id}">ویرایش</button>
+    <button type="button" class="kdel" data-id="${p.id}">حذف</button>
+  `;
+}
+
+function buildKnownEditFormHTML(p){
+  return `
+    <div class="kedit-form">
+      <input type="text" class="kedit-name" data-id="${p.id}" value="${escapeHtml(p.name)}" maxlength="40" placeholder="نام">
+      <input type="text" class="kedit-group" data-id="${p.id}" value="${escapeHtml(profileGroupKey(p))}" maxlength="40" placeholder="گروه (اختیاری)">
+      <div class="kedit-actions">
+        <button type="button" class="primary ksave" data-id="${p.id}">ذخیره</button>
+        <button type="button" class="kcancel" data-id="${p.id}">انصراف</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderKnownList(){
   knownListEl.innerHTML = '';
+  showMoreRow.style.display = 'none';
+
   if(!loggedIn){
     knownListEl.innerHTML = '<p class="known-empty">ابتدا وارد شوید.</p>';
     refCountEl.textContent = '0';
     return;
   }
+  refCountEl.textContent = knownProfiles.length;
   if(!knownProfiles.length){
     knownListEl.innerHTML = '<p class="known-empty">هنوز چهره‌ای ثبت نشده است.</p>';
-    refCountEl.textContent = '0';
     return;
   }
-  knownProfiles.forEach(p => {
+
+  const q = knownSearchText.trim().toLowerCase();
+  let filtered = knownProfiles.filter(p=>{
+    const matchesText = !q || p.name.toLowerCase().includes(q) || profileGroupKey(p).toLowerCase().includes(q);
+    const g = profileGroupKey(p);
+    const matchesGroup = !groupFilterValue
+      || (groupFilterValue === '__NONE__' ? !g : g === groupFilterValue);
+    return matchesText && matchesGroup;
+  });
+
+  if(!filtered.length){
+    knownListEl.innerHTML = '<p class="known-empty">نتیجه‌ای برای این جستجو/گروه پیدا نشد.</p>';
+    return;
+  }
+
+  const collapsing = !q && !groupFilterValue && !showAllKnown && filtered.length > KNOWN_LIST_COLLAPSE_AT;
+  const visible = collapsing ? filtered.slice(0, KNOWN_LIST_COLLAPSE_AT) : filtered;
+
+  visible.forEach(p=>{
     const item = document.createElement('div');
     item.className = 'known-item';
-    item.innerHTML = `<span class="kname">${escapeHtml(p.name)}</span><span class="kcount">${p.sample_count} نمونه</span><button type="button" class="kdel" data-id="${p.id}">حذف</button>`;
+    item.dataset.id = p.id;
+    item.innerHTML = (editingProfileId === p.id) ? buildKnownEditFormHTML(p) : buildKnownItemHTML(p);
     knownListEl.appendChild(item);
   });
-  refCountEl.textContent = knownProfiles.length;
+
+  if(collapsing){
+    showMoreRow.style.display = 'block';
+    btnShowAllKnown.textContent = `نمایش همه (${filtered.length - KNOWN_LIST_COLLAPSE_AT} نفر دیگر)`;
+  }
 }
 
 knownListEl.addEventListener('click', async e=>{
-  const btn = e.target.closest('.kdel');
-  if(!btn) return;
-  const id = btn.dataset.id;
-  btn.disabled = true;
-  try{
-    await apiFetch('/api/profiles/'+id, { method:'DELETE' });
-    await loadKnownList();
-    setStatus('چهره حذف شد.', 'ok');
-  }catch(err){
-    setStatus('حذف با خطا مواجه شد: ' + err.message, 'bad');
-    btn.disabled = false;
+  const delBtn = e.target.closest('.kdel');
+  if(delBtn){
+    const id = delBtn.dataset.id;
+    delBtn.disabled = true;
+    try{
+      await apiFetch('/api/profiles/'+id, { method:'DELETE' });
+      await loadKnownList();
+      setStatus('چهره حذف شد.', 'ok');
+    }catch(err){
+      setStatus('حذف با خطا مواجه شد: ' + err.message, 'bad');
+      delBtn.disabled = false;
+    }
+    return;
   }
+
+  const editBtn = e.target.closest('.kedit');
+  if(editBtn){
+    editingProfileId = Number(editBtn.dataset.id);
+    renderKnownList();
+    return;
+  }
+
+  const cancelBtn = e.target.closest('.kcancel');
+  if(cancelBtn){
+    editingProfileId = null;
+    renderKnownList();
+    return;
+  }
+
+  const saveBtn = e.target.closest('.ksave');
+  if(saveBtn){
+    const id = saveBtn.dataset.id;
+    const row = saveBtn.closest('.known-item');
+    const newName = row.querySelector('.kedit-name').value.trim();
+    const newGroup = row.querySelector('.kedit-group').value.trim();
+    if(!newName){ setStatus('نام نمی‌تواند خالی باشد.', 'bad'); return; }
+    saveBtn.disabled = true;
+    try{
+      await apiFetch('/api/profiles/'+id, {
+        method:'PUT',
+        body: JSON.stringify({ name:newName, group_name:newGroup })
+      });
+      editingProfileId = null;
+      await loadKnownList();
+      setStatus('اطلاعات به‌روزرسانی شد.', 'ok');
+    }catch(err){
+      setStatus('ویرایش با خطا مواجه شد: ' + err.message, 'bad');
+      saveBtn.disabled = false;
+    }
+    return;
+  }
+});
+
+knownSearchInput.addEventListener('input', e=>{
+  knownSearchText = e.target.value;
+  renderKnownList();
+});
+
+groupFilterSelect.addEventListener('change', e=>{
+  groupFilterValue = e.target.value;
+  renderKnownList();
+});
+
+btnShowAllKnown.addEventListener('click', ()=>{
+  showAllKnown = true;
+  renderKnownList();
 });
 
 // ====== حضور و غیاب ======
@@ -681,22 +843,75 @@ function warnIfRestrictedScheme(){
   }
 }
 
+function buildCameraConstraints(deviceId){
+  if(deviceId){
+    return { video:{ deviceId:{ exact: deviceId } }, audio:false };
+  }
+  return { video:{ width:{ideal:480}, facingMode:{ideal:'user'} }, audio:false };
+}
+
+async function attachStream(stream){
+  video.srcObject = stream;
+  await new Promise(resolve => { video.onloadedmetadata = resolve; });
+  await video.play();
+  displaySize = { width: video.videoWidth, height: video.videoHeight };
+  canvas.width = displaySize.width;
+  canvas.height = displaySize.height;
+  const track = stream.getVideoTracks()[0];
+  const settings = (track && track.getSettings) ? track.getSettings() : {};
+  if(settings.deviceId) selectedDeviceId = settings.deviceId;
+}
+
+async function populateCameraList(){
+  try{
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoInputs = devices.filter(d=>d.kind==='videoinput');
+    cameraSelect.innerHTML = '';
+    if(!videoInputs.length){
+      const opt = document.createElement('option');
+      opt.value=''; opt.textContent='دوربینی پیدا نشد';
+      cameraSelect.appendChild(opt);
+    } else {
+      videoInputs.forEach((d,i)=>{
+        const opt = document.createElement('option');
+        opt.value = d.deviceId;
+        opt.textContent = d.label || ('دوربین ' + (i+1));
+        cameraSelect.appendChild(opt);
+      });
+    }
+    devicesPopulated = true;
+    if([...cameraSelect.options].some(o=>o.value===selectedDeviceId)){
+      cameraSelect.value = selectedDeviceId;
+    }
+  }catch(err){
+    console.warn('فهرست دوربین‌ها در دسترس نبود:', err);
+  }
+}
+
+async function switchCamera(deviceId){
+  try{
+    if(video.srcObject){
+      video.srcObject.getTracks().forEach(t=>t.stop());
+    }
+    setStatus('در حال تغییر دوربین…', 'busy');
+    const stream = await navigator.mediaDevices.getUserMedia(buildCameraConstraints(deviceId));
+    await attachStream(stream);
+    setStatus('دوربین عوض شد — در انتظار تشخیص چهره', 'ok');
+  }catch(err){
+    setStatus('تغییر دوربین ممکن نشد: ' + err.message, 'bad');
+    console.error(err);
+  }
+}
+
 async function startCamera(){
   try{
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video:{ width:{ideal:480}, facingMode:{ideal:'user'} },
-      audio:false
-    });
-    video.srcObject = stream;
-    await new Promise(resolve => { video.onloadedmetadata = resolve; });
-    await video.play();
-    displaySize = { width: video.videoWidth, height: video.videoHeight };
-    canvas.width = displaySize.width;
-    canvas.height = displaySize.height;
+    const stream = await navigator.mediaDevices.getUserMedia(buildCameraConstraints(selectedDeviceId));
+    await attachStream(stream);
     btnStart.disabled = true;
     cameraOn = true;
     syncActionButtons();
     setStatus('دوربین آماده است — در انتظار تشخیص چهره', 'ok');
+    await populateCameraList();
     detectLoop();
   }catch(err){
     setStatus('دسترسی به دوربین ممکن نشد.', 'bad');
@@ -732,10 +947,27 @@ async function detectLoop(){
       lastLiveCheckAt = Date.now();
       liveIdentifyPreview(resized.descriptor);
     }
+
+    // ====== تأیید خودکار: شمارش زمانی که چهره پیوسته در قاب است ======
+    if(faceDetectedSince === null) faceDetectedSince = Date.now();
+    const heldMs = Date.now() - faceDetectedSince;
+    if(autoVerifyEnabled){
+      const pct = Math.min(100, (heldMs / (autoHoldSeconds*1000)) * 100);
+      autoProgressFill.style.width = pct + '%';
+      if(!autoFiredForThisPresence && !verifyBusy && loggedIn && knownProfiles.length && heldMs >= autoHoldSeconds*1000){
+        autoFiredForThisPresence = true;
+        verifyIdentity();
+      }
+    } else {
+      autoProgressFill.style.width = '0%';
+    }
   } else {
     currentDetection = null;
     faceVal.textContent = 'خیر';
     matchVal.textContent = '—';
+    faceDetectedSince = null;
+    autoFiredForThisPresence = false;
+    autoProgressFill.style.width = '0%';
   }
 
   if(livenessRequired){
@@ -768,13 +1000,14 @@ async function liveIdentifyPreview(descriptor){
 async function registerFace(){
   if(!currentDetection){ setStatus('چهره‌ای شناسایی نشد؛ مقابل دوربین قرار بگیرید.', 'bad'); return; }
   const name = nameInput.value.trim();
+  const group_name = groupInput.value.trim();
   if(!name){ setStatus('ابتدا یک نام برای این چهره وارد کنید.', 'bad'); nameInput.focus(); return; }
 
   btnRegister.disabled = true;
   try{
     const data = await apiFetch('/api/register', {
       method:'POST',
-      body: JSON.stringify({ name, descriptor: Array.from(currentDetection.descriptor) })
+      body: JSON.stringify({ name, group_name, descriptor: Array.from(currentDetection.descriptor) })
     });
     await loadKnownList();
     setStatus(`نمونهٔ ${data.sample_count} برای «${data.name}» در حساب شما ثبت شد. برای دقت بیشتر ۲ تا ۳ نمونه با زاویه‌های کمی متفاوت ثبت کنید.`, 'ok');
@@ -827,7 +1060,7 @@ async function verifyIdentity(){
     }
 
     const accepted = best.distance <= threshold;
-    matchVal.textContent = accepted ? best.name : 'ناشناس';
+    matchVal.textContent = accepted ? (best.name + (best.group_name ? ` (${best.group_name})` : '')) : 'ناشناس';
     if(accepted){
       // فرض: /api/verify فیلد id چهرهٔ منطبق را هم در best برمی‌گرداند (best.id).
       // اگر بک‌اند فعلی این فیلد را ندارد، طبق راهنمای «افزودن حضور و غیاب به بک‌اند» اضافه‌اش کن.
@@ -855,6 +1088,33 @@ livenessToggle.addEventListener('change', e=>{
     'ok'
   );
 });
+
+autoVerifyToggle.addEventListener('change', e=>{
+  autoVerifyEnabled = e.target.checked;
+  faceDetectedSince = null;
+  autoFiredForThisPresence = false;
+  autoProgressFill.style.width = '0%';
+  setStatus(
+    autoVerifyEnabled ? 'تأیید خودکار فعال شد.' : 'تأیید خودکار غیرفعال شد.',
+    'ok'
+  );
+});
+
+autoHoldInput.addEventListener('input', e=>{
+  autoHoldSeconds = parseFloat(e.target.value);
+  autoHoldVal.textContent = autoHoldSeconds.toFixed(1) + ' ثانیه';
+});
+
+cameraSelect.addEventListener('change', async e=>{
+  selectedDeviceId = e.target.value;
+  if(cameraOn) await switchCamera(selectedDeviceId);
+});
+
+if(navigator.mediaDevices && navigator.mediaDevices.addEventListener){
+  navigator.mediaDevices.addEventListener('devicechange', ()=>{
+    if(devicesPopulated) populateCameraList();
+  });
+}
 
 btnStart.addEventListener('click', startCamera);
 btnRegister.addEventListener('click', registerFace);
