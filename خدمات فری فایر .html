@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>خدمات فری فایر</title>
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlNlcnZpY2VzIEZyZSBGaXJlIiwKICAic2hvcnRfbmFtZSI6ICJTZXJ2aWNlcyBGcmVlIEZpcmUiLAogICJkZXNjcmlwdGlvbiI6ICJBcHAgZm9yIEZyZSBGaXJlIHNlcnZpY2VzIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYTBhMGEiLAogICJ0aGVtZV9jb2xvciI6ICIjZjM5YzEyIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sLDxzdmcgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJyB2aWV3Qm94PScwIDAgNTEyIDUxMic+PHJlY3Qgd2lkdGg9JzUxMicgaGVpZ2h0PSc1MTInIHJ4PSc2MCcgZmlsbD0nI2YzOWMxMicvPjx0ZXh0IHg9JzUwJScgeT0nNTAlJyBmb250LXNpemU9JzI4MCcgdGV4dC1hbmNob3I9J21pZGRsZScgZHk9Jy4zZW0nIGZvbnQtZmFtaWx5PSdBcmlhbCcgZmlsbD0nI2ZmZic+RjwvdGV4dD48L3N2Zz4iLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3N2Zyt4bWwiLAogICAgICAicHVycG9zZSI6ICJhbnkgbWFzayBhbnlzaXplIgogICAgfQogIF0KfQ==">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Tahoma', sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .container {
+            max-width: 500px;
+            width: 100%;
+            background: #1a1a1a;
+            padding: 40px 25px;
+            border-radius: 20px;
+            border: 2px solid #f39c12;
+            box-shadow: 0 0 50px rgba(243, 156, 18, 0.1);
+            text-align: center;
+        }
+        h1 {
+            font-size: 32px;
+            color: #f39c12;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(243, 156, 18, 0.3);
+        }
+        .subtitle {
+            color: #888;
+            font-size: 16px;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 15px;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 16px 20px;
+            margin-bottom: 5px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 16px;
+            transition: 0.3s;
+            text-align: center;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            -webkit-touch-callout: none;
+        }
+        .btn:hover {
+            transform: scale(1.03);
+        }
+        .btn:active {
+            transform: scale(0.97);
+        }
+        .btn-rubika {
+            background: linear-gradient(135deg, #6c5ce7, #0984e3);
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        }
+        .btn-rubika:hover {
+            box-shadow: 0 6px 25px rgba(108, 92, 231, 0.5);
+        }
+        .btn-telegram {
+            background: linear-gradient(135deg, #0088cc, #005f8a);
+            box-shadow: 0 4px 15px rgba(0, 136, 204, 0.3);
+        }
+        .btn-telegram:hover {
+            box-shadow: 0 6px 25px rgba(0, 136, 204, 0.5);
+        }
+        .btn-youtube {
+            background: linear-gradient(135deg, #ff0000, #cc0000);
+            box-shadow: 0 4px 15px rgba(255, 0, 0, 0.3);
+        }
+        .btn-youtube:hover {
+            box-shadow: 0 6px 25px rgba(255, 0, 0, 0.5);
+        }
+        .price {
+            display: block;
+            color: #f1c40f;
+            font-size: 14px;
+            margin-top: 2px;
+            margin-bottom: 12px;
+            font-weight: bold;
+        }
+        .install-btn {
+            background: #2ecc71;
+            color: #fff;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+            transition: 0.3s;
+            display: none;
+        }
+        .install-btn:hover {
+            background: #27ae60;
+            transform: scale(1.03);
+        }
+        .footer {
+            margin-top: 20px;
+            color: #555;
+            font-size: 12px;
+            border-top: 1px solid #222;
+            padding-top: 15px;
+        }
+        @media (max-width: 500px) {
+            .container { padding: 25px 15px; }
+            h1 { font-size: 26px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 خدمات فری فایر</h1>
+        <div class="subtitle">👑 بهترین قیمت‌ها و تضمین کیفیت</div>
+
+        <!-- دکمه 1: پک هدشات + قیمت ۱۰۰,۰۰۰ -->
+        <a href="https://t.me/Nexo_ff_26" target="_blank" class="btn btn-rubika">
+            🎯 خرید پک هدشات فری فایر
+        </a>
+        <span class="price">💰 ۱۰۰,۰۰۰ تومان</span>
+
+        <!-- دکمه 2: ایم بات + قیمت ۸۰,۰۰۰ -->
+        <a href="https://t.me/Nexo_ff_26" target="_blank" class="btn btn-rubika">
+            🤖 خرید ایم بات ۱۰۰٪ فری فایر
+        </a>
+        <span class="price">💰 ۸۰,۰۰۰ تومان</span>
+
+        <!-- دکمه 3: چیت زیر زمینی + قیمت ۱۴۰,۰۰۰ -->
+        <a href="https://t.me/Nexo_ff_26" target="_blank" class="btn btn-rubika">
+            🕳️ خرید چیت زیر زمینی مخصوص لونولف
+        </a>
+        <span class="price">💰 ۱۴۰,۰۰۰ تومان</span>
+
+        <!-- دکمه 4: پنل فیریز + قیمت ۱۲۰,۰۰۰ -->
+        <a href="https://t.me/Nexo_ff_26" target="_blank" class="btn btn-rubika">
+            ⚡ خرید پنل فیریز
+        </a>
+        <span class="price">💰 ۱۲۰,۰۰۰ تومان</span>
+
+        <!-- دکمه 5: کانال روبیکا (بدون قیمت) -->
+        <a href="https://rubika.ir/arshia00yh2" target="_blank" class="btn btn-rubika">
+            📢 کانال روبیکا ما
+        </a>
+
+        <!-- دکمه 6: تلگرام (بدون قیمت) -->
+        <a href="https://t.me/+2_92htEE20RjZmJk" target="_blank" class="btn btn-telegram">
+            📱 کانال تلگرام ما
+        </a>
+
+        <!-- دکمه 7: یوتیوب (بدون قیمت) -->
+        <a href="https://youtube.com/@nexo_ff_13?si=gWp_f6D5Kb_oMlE6" target="_blank" class="btn btn-youtube">
+            🎬 کانال یوتیوب ما
+        </a>
+
+        <!-- دکمه نصب برنامه -->
+        <button id="installBtn" class="install-btn">📲 نصب برنامه روی گوشی</button>
+
+        <div class="footer">ساخته شده توسط Nexo Team | ۲۰۲۶</div>
+    </div>
+
+    <script>
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.style.display = 'block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const result = await deferredPrompt.userChoice;
+                if (result.outcome === 'accepted') {
+                    installBtn.style.display = 'none';
+                }
+                deferredPrompt = null;
+            }
+        });
+
+        window.addEventListener('appinstalled', () => {
+            installBtn.style.display = 'none';
+        });
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:text/javascript;base64,' + btoa(
+                'self.addEventListener("fetch", function(e) { e.respondWith(fetch(e.request)); });'
+            )).catch(() => {});
+        }
+    </script>
+</body>
+</html>
