@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="notranslate" translate="no">
 <head>
 <meta charset="UTF-8">
+<meta name="google" content="notranslate">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title>MCBE Structure Tool</title>
 <style>
@@ -161,7 +162,7 @@ button:disabled {
 </style>
 </head>
 <body>
-<div style="background:#333; color:#0f0; text-align:center; padding:6px; font-family:monospace; font-size:0.8rem;">DEBUG BUILD v2 — if you don't see this line, the old file is still cached</div>
+<div style="background:#333; color:#0f0; text-align:center; padding:6px; font-family:monospace; font-size:0.8rem;">DEBUG BUILD v3 — if you don't see this line, the old file is still cached</div>
 <div id="debugError" style="display:none; background:#b71c1c; color:white; padding:12px; margin:10px; border-radius:10px; font-family:monospace; font-size:0.8rem; white-space:pre-wrap; word-break:break-word;"></div>
 <script>
   function showDebug(msg) {
@@ -445,6 +446,7 @@ function applyLanguage(lang) {
 }
 
 function toggleLanguage() {
+  if (typeof showDebug === 'function') showDebug('lang button clicked, switching to ' + (currentLang === 'zh' ? 'en' : 'zh'));
   const newLang = currentLang === 'zh' ? 'en' : 'zh';
   applyLanguage(newLang);
 }
