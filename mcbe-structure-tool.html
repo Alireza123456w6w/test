@@ -161,6 +161,21 @@ button:disabled {
 </style>
 </head>
 <body>
+<div id="debugError" style="display:none; background:#b71c1c; color:white; padding:12px; margin:10px; border-radius:10px; font-family:monospace; font-size:0.8rem; white-space:pre-wrap; word-break:break-word;"></div>
+<script>
+  function showDebug(msg) {
+    var d = document.getElementById('debugError');
+    d.style.display = 'block';
+    d.textContent += msg + '\n\n';
+  }
+  window.addEventListener('error', function (e) {
+    showDebug('Error: ' + (e.message || (e.error && e.error.message) || 'unknown') + '\nAt: ' + (e.filename || '?') + ':' + (e.lineno || '?'));
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var reason = e.reason;
+    showDebug('Promise rejection: ' + (reason && reason.message ? reason.message : String(reason)));
+  });
+</script>
 <div class="card">
 <div class="lang-switch">
 <button id="langToggleBtn" class="lang-btn">English</button>
