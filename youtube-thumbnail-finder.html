@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>YouTube Thumbnail Finder</title>
 
 <style>
@@ -21,6 +21,8 @@ body{
   justify-content:center;
   align-items:center;
   padding:20px;
+  padding-top:calc(20px + env(safe-area-inset-top, 0px));
+  padding-bottom:calc(20px + env(safe-area-inset-bottom, 0px));
 }
 
 .container{
@@ -150,6 +152,31 @@ button:hover{
   line-height:2;
 }
 
+.footer{
+  text-align:center;
+  margin-top:28px;
+  padding-top:16px;
+  border-top:1px solid rgba(255,255,255,.08);
+  color:#888;
+  font-size:12px;
+  line-height:2;
+}
+
+.footer b{
+  color:#ccc;
+}
+
+.footer a{
+  color:#ff647e;
+  text-decoration:none;
+  direction:ltr;
+  display:inline-block;
+}
+
+.footer a:hover{
+  text-decoration:underline;
+}
+
 @media(max-width:520px){
   .container{
     padding:20px;
@@ -226,6 +253,11 @@ button:hover{
       تصویر با کیفیت بالا از خود YouTube دریافت شده است.
     </div>
 
+  </div>
+
+  <div class="footer">
+    توسعه یافته توسط <b>W6W</b><br>
+    <a href="https://offers-pishnahadat.vercel.app" target="_blank" rel="noopener">offers-pishnahadat.vercel.app</a>
   </div>
 
 </div>
