@@ -23,11 +23,42 @@ echo -e "${YELLOW}    offers-pishnahadat.vercel.app       ${NC}"
 echo -e "${YELLOW}========================================${NC}"
 echo ""
 
-# ---------- Password ----------
+# ---------- Password with asterisks ----------
+password=""
 echo -n "Enter password: "
-read -s password
+
+# Save terminal settings
+if command -v stty >/dev/null 2>&1; then
+    old_stty=$(stty -g)
+    stty -echo -icanon min 1 time 0
+fi
+
+while true; do
+    # Read one character
+    char=$(dd bs=1 count=1 2>/dev/null)
+    
+    # Enter key
+    if [[ "$char" == $'\n' || "$char" == $'\r' || -z "$char" ]]; then
+        break
+    fi
+    
+    # Backspace (ASCII 127 or 8)
+    if [[ $(printf "%d" "'$char") -eq 127 || $(printf "%d" "'$char") -eq 8 ]]; then
+        if [ ${#password} -gt 0 ]; then
+            password="${password%?}"
+            printf "\b \b"
+        fi
+    else
+        password+="$char"
+        printf "*"
+    fi
+done
+
+# Restore terminal
+if command -v stty >/dev/null 2>&1; then
+    stty "$old_stty"
+fi
 echo ""
-echo -e "${CYAN}(password hidden for security)${NC}"
 echo ""
 
 # ---------- SHA256 ----------
