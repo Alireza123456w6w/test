@@ -21,17 +21,36 @@ echo -e "${YELLOW}    offers-pishnahadat.vercel.app       ${NC}"
 echo -e "${YELLOW}========================================${NC}"
 echo ""
 
-# ---------- Password Check (SHA256) ----------
-read -s -p "Enter password: " pass
+# ---------- Password input with asterisks ----------
+password=""
+prompt="Enter password: "
+echo -n "$prompt"
+
+while IFS= read -r -s -n 1 char; do
+    # Enter key pressed
+    if [[ $char == $'\0' || $char == $'\n' || $char == $'\r' ]]; then
+        break
+    fi
+    # Backspace
+    if [[ $char == $'\177' || $char == $'\b' ]]; then
+        if [ ${#password} -gt 0 ]; then
+            password="${password%?}"
+            echo -ne "\b \b"
+        fi
+    else
+        password+="$char"
+        echo -n "*"
+    fi
+done
 echo ""
 
-# Cross-platform SHA256
+# ---------- SHA256 Hash (cross-platform) ----------
 if command -v sha256sum >/dev/null 2>&1; then
-    HASH=$(echo -n "$pass" | sha256sum | awk '{print $1}')
+    HASH=$(printf '%s' "$password" | sha256sum | awk '{print $1}')
 elif command -v shasum >/dev/null 2>&1; then
-    HASH=$(echo -n "$pass" | shasum -a 256 | awk '{print $1}')
+    HASH=$(printf '%s' "$password" | shasum -a 256 | awk '{print $1}')
 else
-    echo -e "${RED}Error: No SHA256 tool found (sha256sum or shasum).${NC}"
+    echo -e "${RED}Error: No SHA256 tool found.${NC}"
     exit 1
 fi
 
@@ -46,15 +65,12 @@ echo -e "${GREEN}Password correct. Starting download...${NC}"
 
 # ---------- Detect Output Directory ----------
 if [ -d "/sdcard/Download" ]; then
-    # Android (Termux)
     OUTDIR="/sdcard/Download"
 elif [ -d "$HOME/Downloads" ]; then
-    # Linux / macOS
     OUTDIR="$HOME/Downloads"
 elif [ -d "$HOME/Download" ]; then
     OUTDIR="$HOME/Download"
 else
-    # Fallback: current directory
     OUTDIR="."
 fi
 
@@ -73,10 +89,8 @@ echo "Combining and decoding..."
 
 # ---------- Cross-platform base64 decode ----------
 if base64 --help 2>&1 | grep -q "\-d"; then
-    # Linux / Termux
     cat "$TMPDIR/t1" "$TMPDIR/t2" "$TMPDIR/t3" | base64 -d > "$OUTFILE"
 else
-    # macOS
     cat "$TMPDIR/t1" "$TMPDIR/t2" "$TMPDIR/t3" | base64 -D > "$OUTFILE"
 fi
 
